@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pet Simulator</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#ffb86b; --muted:#94a3b8;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial; margin:0; background:linear-gradient(180deg,#071024 0%, #071939 100%); color:#e6eef8; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px}
+
+    .wrap{width:100%; max-width:980px}
+    header{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px}
+    header h1{font-size:20px; margin:0}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.04); padding:18px; border-radius:14px; box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+
+    .grid{display:grid; grid-template-columns:320px 1fr; gap:18px}
+    @media (max-width:800px){.grid{grid-template-columns:1fr}}
+
+    .pet-area{display:flex; flex-direction:column; align-items:center; gap:14px}
+    .pet-card{width:280px; height:320px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:linear-gradient(180deg,#0d1b2a,#071428); position:relative}
+    .pet-image{font-size:96px; transform-origin:center; transition:transform 300ms ease}
+    .pet-bubble{position:absolute; top:10px; right:12px; background:rgba(255,255,255,0.06); padding:8px 12px; border-radius:12px; font-size:13px; color:var(--muted)}
+
+    .controls{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+    .btn{background:linear-gradient(180deg,#102136,#0a1728); border:1px solid rgba(255,255,255,0.04); color:var(--accent); padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600}
+    .btn.secondary{color:#bcd9ff; background:transparent}
+
+    .stat{margin:8px 0}
+    .stat-label{display:flex; justify-content:space-between; font-size:13px; color:var(--muted)}
+    .progress{height:12px; background:rgba(255,255,255,0.04); border-radius:999px; overflow:hidden; margin-top:6px}
+    .progress > i{display:block; height:100%; background:linear-gradient(90deg,var(--accent),#ffd6a5); width:0%; transition:width 400ms ease}
+
+    .right{display:flex; flex-direction:column; gap:12px}
+    .settings{display:flex; gap:10px; align-items:center}
+    select,input[type=text]{padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:transparent; color:inherit}
+
+    .log{height:110px; overflow:auto; background:rgba(255,255,255,0.02); padding:10px; border-radius:8px; font-size:13px}
+    .small{font-size:13px; color:var(--muted)}
+
+    footer{display:flex; justify-content:space-between; align-items:center; margin-top:12px}
+    .pet-happy{filter:drop-shadow(0 12px 24px rgba(255,184,107,0.08))}
+
+    /* cute bounce when playing */
+    .bounce{animation:bounce 700ms ease}
+    @keyframes bounce{0%{transform:translateY(0)}30%{transform:translateY(-18px)}60%{transform:translateY(0)}100%{transform:translateY(0)}}
+
+    /* sleepy */
+    .sleepy{opacity:0.6; transform:scale(0.96) rotate(-2deg)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Pet Simulator</h1>
+      <div class="small">Tip: your pet's state saves automatically in your browser.</div>
+    </header>
+
+    <div class="grid">
+      <div class="card pet-area">
+        <div style="width:100%" class="pet-card" id="petCard">
+          <div class="pet-bubble" id="moodText">Loading...</div>
+          <div style="text-align:center">
+            <div id="petImg" class="pet-image">🐶</div>
+            <div style="margin-top:8px">
+              <div style="font-weight:700" id="petName">Buddy</div>
+              <div class="small" id="petTypeText">Dog • Age: <span id="petAge">0</span> days</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls" style="margin-top:6px">
+          <button class="btn" id="feedBtn">Feed 🍖</button>
+          <button class="btn" id="playBtn">Play ⚽</button>
+          <button class="btn secondary" id="sleepBtn">Sleep 😴</button>
+          <button class="btn secondary" id="washBtn">Wash 🛁</button>
+        </div>
+
+        <div style="width:100%; margin-top:12px">
+          <div class="stat">
+            <div class="stat-label"><span>Hunger</span><span id="hungerVal">0</span></div>
+            <div class="progress"><i id="hungerBar"></i></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label"><span>Happiness</span><span id="happyVal">0</span></div>
+            <div class="progress"><i id="happyBar"></i></div>
+          </div>
+          <div class="stat">
+            <div class="stat-label"><span>Energy</span><span id="energyVal">0</span></div>
+            <div class="progress"><i id="energyBar"></i></div>
+          </div>
+        </div>
+
+        <footer style="width:100%">
+          <div class="small">Last action: <span id="lastAction">—</span></div>
+          <div class="small">Day <span id="dayCount">0</span></div>
+        </footer>
+      </div>
+
+      <div class="card right">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <div style="display:flex; gap:8px; align-items:center">
+            <label class="small">Choose pet:</label>
+            <select id="petSelect">
+              <option value="dog">Dog</option>
+              <option value="cat">Cat</option>
+              <option value="bunny">Bunny</option>
+              <option value="dragon">Dragon</option>
+            </select>
+            <input type="text" id="nameInput" placeholder="Pet name" />
+            <button class="btn" id="createBtn">Create</button>
+          </div>
+          <div style="text-align:right">
+            <div class="small">Autosave: <span id="autosaveText">ON</span></div>
+            <button class="btn secondary" id="resetBtn">Reset</button>
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <div class="small" style="margin-bottom:6px">Activity Log</div>
+          <div class="log" id="log"></div>
+        </div>
+
+        <div style="margin-top:10px; display:flex; gap:10px; align-items:center">
+          <div>
+            <div class="small">Speed</div>
+            <select id="speed">
+              <option value="1">Normal</option>
+              <option value="0.5">Slow</option>
+              <option value="2">Fast</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <div class="small">Quick Actions</div>
+            <div style="display:flex; gap:8px; margin-top:6px">
+              <button class="btn" id="fullFeed">Full Feed</button>
+              <button class="btn" id="cheerUp">Cheer Up</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <div class="small">Hints</div>
+          <ul class="small" style="margin-top:6px; color:var(--muted)">
+            <li>Hunger increases over time — feed to lower it.</li>
+            <li>Play raises happiness but lowers energy.</li>
+            <li>Sleep restores energy.</li>
+            <li>Keep stats between 20–80 for a healthy pet.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Pet simulator core
+    const defaultState = {
+      name: 'Buddy',
+      type: 'dog',
+      hunger: 30,    // 0 (full) -> 100 (starving)
+      happiness: 70, // 0 -> 100
+      energy: 60,    // 0 -> 100
+      day: 1,
+      lastAction: 'Born!',
+      ageDays:0
+    };
+
+    let state = loadState();
+    let timer = null;
+
+    // UI refs
+    const petImg = document.getElementById('petImg');
+    const petNameEl = document.getElementById('petName');
+    const petTypeEl = document.getElementById('petTypeText');
+    const moodText = document.getElementById('moodText');
+    const hungerBar = document.getElementById('hungerBar');
+    const happyBar = document.getElementById('happyBar');
+    const energyBar = document.getElementById('energyBar');
+    const hungerVal = document.getElementById('hungerVal');
+    const happyVal = document.getElementById('happyVal');
+    const energyVal = document.getElementById('energyVal');
+    const lastAction = document.getElementById('lastAction');
+    const dayCount = document.getElementById('dayCount');
+    const logEl = document.getElementById('log');
+    const petCard = document.getElementById('petCard');
+
+    // Controls
+    document.getElementById('feedBtn').addEventListener('click', ()=>action('feed'));
+    document.getElementById('playBtn').addEventListener('click', ()=>action('play'));
+    document.getElementById('sleepBtn').addEventListener('click', ()=>action('sleep'));
+    document.getElementById('washBtn').addEventListener('click', ()=>action('wash'));
+    document.getElementById('createBtn').addEventListener('click', createPet);
+    document.getElementById('resetBtn').addEventListener('click', resetPet);
+    document.getElementById('petSelect').addEventListener('change', previewPet);
+    document.getElementById('nameInput').addEventListener('input', ()=>{});
+    document.getElementById('fullFeed').addEventListener('click', ()=>{state.hunger = Math.max(0,state.hunger-60); pushLog('Given a feast!'); saveAndUpdate();});
+    document.getElementById('cheerUp').addEventListener('click', ()=>{state.happiness = Math.min(100,state.happiness+30); pushLog('Told a funny story — +happiness'); saveAndUpdate();});
+    document.getElementById('speed').addEventListener('change', restartTimer);
+
+    function previewPet(){
+      const t = document.getElementById('petSelect').value;
+      petImg.textContent = petEmoji(t);
+    }
+
+    function createPet(){
+      const type = document.getElementById('petSelect').value;
+      const name = document.getElementById('nameInput').value.trim() || capitalize(type);
+      state = Object.assign({}, defaultState, {type, name, ageDays:0, day:1, lastAction:'Created!'});
+      pushLog(`Created ${name} the ${type}.`);
+      saveAndUpdate();
+      restartTimer();
+    }
+
+    function resetPet(){
+      if(!confirm('Reset pet and clear saved data?')) return;
+      localStorage.removeItem('petSimState');
+      state = Object.assign({}, defaultState);
+      saveAndUpdate();
+    }
+
+    function petEmoji(type){
+      switch(type){
+        case 'dog': return '🐶';
+        case 'cat': return '🐱';
+        case 'bunny': return '🐰';
+        case 'dragon': return '🐲';
+        default: return '🐾';
+      }
+    }
+
+    function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+
+    function action(kind){
+      if(kind==='feed'){
+        state.hunger = Math.max(0, state.hunger - randRange(12,26));
+        state.energy = Math.min(100, state.energy + randRange(2,8));
+        pushLog(`${state.name} ate some food.`);
+        petBounce();
+      } else if(kind==='play'){
+        if(state.energy < 12){ pushLog(`${state.name} is too tired to play.`); }
+        else{
+          state.happiness = Math.min(100, state.happiness + randRange(8,22));
+          state.energy = Math.max(0, state.energy - randRange(12,26));
+          state.hunger = Math.min(100, state.hunger + randRange(6,12));
+          pushLog(`${state.name} played happily.`);
+          petBounce();
+        }
+      } else if(kind==='sleep'){
+        state.energy = Math.min(100, state.energy + randRange(20,40));
+        state.hunger = Math.min(100, state.hunger + randRange(8,16));
+        pushLog(`${state.name} took a nap.`);
+        petSleepAnim();
+      } else if(kind==='wash'){
+        state.happiness = Math.min(100, state.happiness + randRange(4,12));
+        pushLog(`${state.name} is clean and fresh.`);
+      }
+      state.lastAction = `${capitalize(kind)} — ${new Date().toLocaleTimeString()}`;
+      saveAndUpdate();
+    }
+
+    function randRange(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+
+    function pushLog(text){
+      const time = new Date().toLocaleTimeString();
+      const msg = `${time} — ${text}`;
+      state.log = state.log || [];
+      state.log.unshift(msg);
+      if(state.log.length>50) state.log.pop();
+      renderLog();
+    }
+
+    function renderLog(){
+      logEl.innerHTML = (state.log||[]).map(l=>`<div>${escapeHtml(l)}</div>`).join('');
+    }
+
+    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+    function saveAndUpdate(){
+      state.updated = Date.now();
+      localStorage.setItem('petSimState', JSON.stringify(state));
+      updateUI();
+    }
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem('petSimState');
+        if(!raw) return Object.assign({}, defaultState);
+        const parsed = JSON.parse(raw);
+        return Object.assign({}, defaultState, parsed);
+      }catch(e){return Object.assign({}, defaultState)}
+    }
+
+    function updateUI(){
+      petImg.textContent = petEmoji(state.type);
+      petNameEl.textContent = state.name;
+      document.getElementById('petSelect').value = state.type;
+      document.getElementById('nameInput').value = state.name;
+      petTypeEl.innerHTML = `${capitalize(state.type)} • Age: <span id=petAge>${state.ageDays}</span> days`;
+
+      hungerBar.style.width = `${Math.max(0,Math.min(100,state.hunger))}%`;
+      happyBar.style.width = `${Math.max(0,Math.min(100,state.happiness))}%`;
+      energyBar.style.width = `${Math.max(0,Math.min(100,state.energy))}%`;
+
+      hungerVal.textContent = Math.round(state.hunger);
+      happyVal.textContent = Math.round(state.happiness);
+      energyVal.textContent = Math.round(state.energy);
+      lastAction.textContent = state.lastAction || '—';
+      dayCount.textContent = state.day || 0;
+
+      // mood calc
+      const mood = computeMood();
+      moodText.textContent = mood.text;
+      moodText.style.color = mood.color;
+      if(mood.emoji){ petImg.textContent = mood.emoji };
+
+      // adjust styles
+      petImg.classList.toggle('pet-happy', state.happiness>70);
+      petImg.classList.toggle('sleepy', state.energy<18);
+
+      renderLog();
+    }
+
+    function computeMood(){
+      // simple weighted score
+      const score = (100 - state.hunger)*0.4 + state.happiness*0.4 + state.energy*0.2;
+      if(score>75) return {text:'Energetic & Happy!', color:'#a8ffb2', emoji:petEmoji(state.type)};
+      if(score>50) return {text:'Content', color:'#fff2bd', emoji:petEmoji(state.type)};
+      if(score>30) return {text:'A bit down', color:'#ffd1d1', emoji:petEmoji(state.type)};
+      return {text:'Needs attention!', color:'#ffb3b3', emoji:'😿'};
+    }
+
+    // timer tick: change hunger/happiness/energy every N seconds
+    function tick(){
+      // speed factor
+      const speed = parseFloat(document.getElementById('speed').value) || 1;
+      // hunger gradually increases
+      state.hunger = Math.min(100, state.hunger + 0.6 * speed);
+      // happiness slowly decreases if hunger high or energy low
+      const unhappyPenalty = (state.hunger>70?0.4:0) + (state.energy<20?0.3:0);
+      state.happiness = Math.max(0, state.happiness - (0.2 + unhappyPenalty) * speed);
+      // energy drains slowly
+      state.energy = Math.max(0, state.energy - 0.25 * speed);
+
+      // every ~60 ticks consider it a day passing (we'll use tick count)
+      state._tickCount = (state._tickCount||0) + 1;
+      if(state._tickCount % Math.round(60/(1/(1*speed))) === 0){
+        state.day = (state.day||1) + 1;
+        state.ageDays = (state.ageDays||0) + 1;
+        pushLog(`A new day begins: Day ${state.day}`);
+      }
+
+      // small auto-reactions
+      if(state.hunger>90){ pushLog(`${state.name} is starving!`); }
+      if(state.happiness<10){ pushLog(`${state.name} seems depressed.`); }
+
+      saveAndUpdate();
+    }
+
+    function restartTimer(){
+      if(timer) clearInterval(timer);
+      const speed = parseFloat(document.getElementById('speed').value) || 1;
+      // interval in ms (smaller = faster simulation)
+      const interval = Math.max(500, Math.round(1500 / speed));
+      timer = setInterval(tick, interval);
+    }
+
+    function petBounce(){
+      petImg.classList.remove('bounce');
+      void petImg.offsetWidth;
+      petImg.classList.add('bounce');
+    }
+
+    function petSleepAnim(){
+      petImg.classList.add('sleepy');
+      setTimeout(()=>{ petImg.classList.remove('sleepy'); }, 2000);
+    }
+
+    // init
+    (function init(){
+      // safe defaults
+      state = Object.assign({}, defaultState, state);
+      if(!state.log) state.log = [];
+      if(!state.name) state.name = defaultState.name;
+      updateUI();
+      restartTimer();
+      pushLog('Simulator ready.');
+      saveAndUpdate();
+    })();
+
+    // expose helper to developer console
+    window.petSim = {state, saveAndUpdate, action, resetPet};
+  </script>
+</body>
+</html>
